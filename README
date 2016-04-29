@@ -1,0 +1,71 @@
+Version 4.0
+
+check_summary [-x][-s][-d][-h][-z] [-f file | -e 'script'] [-S status.log]
+                    [-O objects.cache][-L livestatusport]
+
+-x : Do not ignore hosts/services with notifications disabled
+-z : Do not ignore hosts/services in scheduled downtime
+-s : Ignore services in a soft alert state
+-h : Show this help text
+-d : Enable debug mode. Can help track down script errors.
+-L : Give Livestatus API (eg: localhost:6557)
+-S : Give location of status.log/dat file (default /u02/nagios/log/status.log)
+-O : Give location of objects.cache file (Nagios 3.x) (default /u02/nagios/log/objects.cache)
+
+Script syntax:
+Script must resolve to a single value, else it is an error.
+Script can contain functions, hosts, services, and literals.
+You must quote spaces, or escape with a backstroke.
+
+Literals are of the form:
+     status:text
+for status of OK,WARN,CRIT,UNKNOWN
+
+Hosts are of the form:
+     /hostname
+where hostname can be a regexp preceeded by a % or a hostgroup preceded by a :
+
+Services are of the form:
+     /hostname/servicedesc
+where either or both of hostname and servicedesc can be regexps preceeded by %
+You can also specify the host as a hostgroup preceded by a :.
+If a service is specified using hostgroup and/or regexp, then only matching
+services are implied.  This may mean no matching services at all!  An error
+is only given if a non-existant explicit hostname/servicename is given.
+
+Functions are of the form:
+     @functionname ( argumentlist )
+where argumentlist is a list made up of one or more literals, hosts, services,
+or functions.  The functionname can be any of:
+  @max : Take the maximum value of the statuses in the list
+  @min : Take the minimum value of the statuses in the list
+  @cluster : OK if all are OK, critical if all are critical, else warning
+  @avg : Mean average status, rounded to nearest
+  @median : Median status
+  @map : Change text to the text of item with the same status as the first
+          item in the list.  Status is the status of the first item.  Use this
+          to rewrite the text after calculations.
+  @threshold : First item is  dummy threshold definition item.  Add the   
+          statuses of all other items and compare to warn/crit thresholds in  
+          dummy item.  First item should be of form 0:minc/minw/maxw/maxc and 
+          status will go critical if total <minc or >maxc.
+  @mapstatus : Take the first item.  If the status matches that of any of 
+          the following items, change the status to the second part of the    
+          matching item
+
+Example scripts:
+ @map ( @max ( @cluster( /%webserver ) @cluster( /%dbserver ) /router ) "OK:All fine" "WARN:Performance degraded" "CRIT:Service unavailable" )
+ @mapstatus ( @max( /:hg/DNS ) CRITICAL:WARNING UNKNOWN:WARNING )
+
+The first will go critical if either the router, all of the dbserver* hosts, or all of the webserver* hosts, are critical.  The default status description
+is replaced with one of the three given.
+
+The second will check the status of the DNS service on all members of the 
+hg hostgroup.  It will take the worst status and map critical and unknown
+to warning; therefore it will show warning unless all services are OK.
+
+NOTE: If your regexp contains a space, this wil not work.  Replace spaces
+with a '.'.  All scripts are tokenised on whitespace, so spaces around the
+brackets are required.  Quotes are not understood.
+
+check_summary created by Steve Shipway http://www.steveshipway.org/software
